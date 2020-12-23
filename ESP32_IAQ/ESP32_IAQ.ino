@@ -7,19 +7,25 @@
 
 SoftwareSerial mhz19bSerial, zh03bSerial;
 
+// mhz219b uart read command
 const uint8_t mhz19b_read_concentration[] = {0xff, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
-const uint8_t zh03b_set_qa_mode[]         = {0xff, 0x01, 0x78, 0x41, 0x00, 0x00, 0x00, 0x00, 0x46};
-const uint8_t zh03b_read_data[]           = {0xff, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
+// zh03b uart set qa mode command
+const uint8_t zh03b_set_qa_mode[] = {0xff, 0x01, 0x78, 0x41, 0x00, 0x00, 0x00, 0x00, 0x46};
+// zh03b uart read command
+const uint8_t zh03b_read_data[] = {0xff, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
 
 #ifdef DUMP_AT_COMMANDS
 #include <StreamDebugger.h>
 StreamDebugger debugger(SerialAT, SerialMon);
 TinyGsm        modem(debugger, AM7020_RESET);
 #else
+// 建立 AM7020 modem（設定 Serial 及 EN Pin）
 TinyGsm modem(SerialAT, AM7020_RESET);
 #endif
+// 在 modem 架構上建立 Tcp Client
 TinyGsmClient tcpClient(modem);
-PubSubClient  mqttClient(MQTT_BROKER, MQTT_PORT, tcpClient);
+// 在 Tcp Client 架構上建立 MQTT Client
+PubSubClient mqttClient(MQTT_BROKER, MQTT_PORT, tcpClient);
 
 int  readMHZ19BCO2(void);
 int  readZH03BPM25(void);
@@ -36,11 +42,14 @@ void setup()
     SerialAT.begin(BAUDRATE_115200);
 
     randomSeed(analogRead(A0));
+    // AM7020 NBIOT 連線基地台
     nbConnect();
-
+    // 建立  mhz19b Software Serial(rx_pin: 18, tx_pin: 19)
     mhz19bSerial.begin(BAUDRATE_9600, SWSERIAL_8N1, MHZ19B_RX, MHZ19B_TX, false, MHZ19B_BUFF_SIZE, 11);
+    // 建立 zh03b Software Serial(rx_pin: 5, tx_pin: 23)
     zh03bSerial.begin(BAUDRATE_9600, SWSERIAL_8N1, ZH03B_RX, ZH03B_TX, false, ZH03B_BUFF_SIZE, 11);
     setZH03BQAMode();
+    // 設定 MQTT KeepAlive time 為 600 秒
     mqttClient.setKeepAlive(600);
 }
 
@@ -49,10 +58,13 @@ void loop()
     static unsigned long timer = 0;
     int                  co2, pm25;
 
+    // 讀取 co2 & pm2.5
     co2  = readMHZ19BCO2();
     pm25 = readZH03BPM25();
 
+    // 檢查 MQTT Client 連線狀態
     if (!mqttClient.connected()) {
+        // 檢查 NBIOT 連線狀態
         if (!modem.isNetworkConnected()) {
             nbConnect();
         }
@@ -70,45 +82,62 @@ void loop()
         if (co2 > 0) {
             SerialMon.print(F("Publish co2 : "));
             SerialMon.println(co2);
+            // 上傳 co2 到 MQTT Broker
             mqttClient.publish(IAQ_CO2_TOPIC, String(co2).c_str());
         }
         if (pm25 > 0) {
             SerialMon.print(F("Publish pm25: "));
             SerialMon.println(pm25);
+            // 上傳 pm2.5 到 MQTT Broker
             mqttClient.publish(IAQ_PM25_TOPIC, String(pm25).c_str());
         }
     }
+    // MQTT Client polling
     mqttClient.loop();
 }
 
+/**
+ * AM7020 NBIOT 連線基地台
+ */
 void nbConnect(void)
 {
     debugSerial.println(F("Initializing modem..."));
+    // 初始化 & 連線基地台
     while (!modem.init() || !modem.nbiotConnect(APN, BAND)) {
         debugSerial.print(F("."));
     };
 
     debugSerial.print(F("Waiting for network..."));
+    // 等待網路連線
     while (!modem.waitForNetwork()) {
         debugSerial.print(F("."));
     }
     debugSerial.println(F(" success"));
 }
 
+/**
+ * MQTT Client 連線
+ */
 void mqttConnect(void)
 {
     SerialMon.print(F("Connecting to "));
     SerialMon.print(MQTT_BROKER);
     SerialMon.print(F("..."));
 
-    // Connect to MQTT Broker
+    /* Connect to MQTT Broker */
+    // 亂數產生 MQTTID
     String mqttid = ("MQTTID_" + String(random(65536)));
+    // MQTT Client 連線
     while (!mqttClient.connect(mqttid.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
         SerialMon.println(F(" fail"));
     }
     SerialMon.println(F(" success"));
 }
 
+/**
+ * 讀取 MHZ219B 二氧化碳濃度
+ * @return 二氧化碳濃度
+ */
 int readMHZ19BCO2(void)
 {
     uint8_t       data[9], check_sum = 0x00;
@@ -141,6 +170,10 @@ int readMHZ19BCO2(void)
     return -2;
 }
 
+/**
+ * 讀取 ZH03B PM2.5
+ * @return PM2.5
+ */
 int readZH03BPM25(void)
 {
     uint8_t       data[9], check_sum = 0x00;
@@ -173,6 +206,9 @@ int readZH03BPM25(void)
     return -2;
 }
 
+/**
+ * 設定 ZH03B 資料接收為被動模式
+ */
 void setZH03BQAMode(void)
 {
     // write command to ZH03B
