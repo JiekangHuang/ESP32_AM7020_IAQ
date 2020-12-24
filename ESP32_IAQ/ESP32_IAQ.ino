@@ -111,21 +111,12 @@ void loop()
             // 上傳 pm2.5 到 MQTT Broker
             mqttClient.publish(IAQ_PM25_TOPIC, String(pm25).c_str());
             // 判斷 PM2.5 對應顏色
-            if (pm25 > 300) {
-                // 褐紅色，#A52A2A
-                pm25_color = "#A52A2A";
-            } else if (pm25 > 200) {
-                // 紫色，#8B00FF
-                pm25_color = "#8B00FF";
-            } else if (pm25 > 150) {
+            if (pm25 > 53) {
                 // 紅色，#FF0000
                 pm25_color = "#FF0000";
-            } else if (pm25 > 100) {
+            } else if (pm25 > 35) {
                 // 橘色，#F28500
                 pm25_color = "#F28500";
-            } else if (pm25 > 50) {
-                // 黃色，#FFFF00
-                pm25_color = "#FFFF00";
             } else {
                 // 綠色，#008000
                 pm25_color = "#008000";
