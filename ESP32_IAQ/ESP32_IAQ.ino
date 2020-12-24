@@ -56,6 +56,8 @@ void setup()
 void loop()
 {
     static unsigned long timer = 0;
+    static String        pre_co2_color, pre_pm25_color;
+    String               co2_color, pm25_color;
     int                  co2, pm25;
 
     // 讀取 co2 & pm2.5
@@ -84,12 +86,57 @@ void loop()
             SerialMon.println(co2);
             // 上傳 co2 到 MQTT Broker
             mqttClient.publish(IAQ_CO2_TOPIC, String(co2).c_str());
+            // 判斷 CO2 對應顏色
+            if (co2 > 1000) {
+                // 紅色，#FF0000
+                co2_color = "#FF0000";
+            } else if (co2 > 700) {
+                // 橘色，#F28500
+                co2_color = "#F28500";
+            } else {
+                // 綠色，#008000
+                co2_color = "#008000";
+            }
+            if (!pre_co2_color.equals(co2_color)) {
+                pre_co2_color = co2_color;
+                // 上傳 CO2 對應顏色
+                mqttClient.publish(IAQ_CO2_COLOR_TOPIC, pre_co2_color.c_str());
+                SerialMon.print(F("Publish co2 color : "));
+                SerialMon.println(pre_co2_color);
+            }
         }
         if (pm25 > 0) {
             SerialMon.print(F("Publish pm25: "));
             SerialMon.println(pm25);
             // 上傳 pm2.5 到 MQTT Broker
             mqttClient.publish(IAQ_PM25_TOPIC, String(pm25).c_str());
+            // 判斷 PM2.5 對應顏色
+            if (pm25 > 300) {
+                // 褐紅色，#A52A2A
+                pm25_color = "#A52A2A";
+            } else if (pm25 > 200) {
+                // 紫色，#8B00FF
+                pm25_color = "#8B00FF";
+            } else if (pm25 > 150) {
+                // 紅色，#FF0000
+                pm25_color = "#FF0000";
+            } else if (pm25 > 100) {
+                // 橘色，#F28500
+                pm25_color = "#F28500";
+            } else if (pm25 > 50) {
+                // 黃色，#FFFF00
+                pm25_color = "#FFFF00";
+            } else {
+                // 綠色，#008000
+                pm25_color = "#008000";
+            }
+            if (!pre_pm25_color.equals(pm25_color)) {
+                pre_pm25_color = pm25_color;
+                // 上傳 PM2.5 對應顏色
+                mqttClient.publish(IAQ_PM25_COLOR_TOPIC, pre_pm25_color.c_str());
+                SerialMon.print(F("Publish pm2.5 color : "));
+                SerialMon.println(pre_pm25_color);
+            }
         }
     }
     // MQTT Client polling

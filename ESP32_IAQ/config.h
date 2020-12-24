@@ -59,5 +59,7 @@
 
 #define IAQ_CO2_TOPIC MQTT_USERNAME "/feeds/iaq.co2"
 #define IAQ_PM25_TOPIC MQTT_USERNAME "/feeds/iaq.pm25"
+#define IAQ_PM25_COLOR_TOPIC MQTT_USERNAME "/feeds/iaq.pm25-color"
+#define IAQ_CO2_COLOR_TOPIC MQTT_USERNAME "/feeds/iaq.co2-color"
 
 #endif /* _CONFIG_H */
